@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Vec3.h"
+#include <set>
+
+using std::set;
 
 class Sphere
 {
@@ -16,6 +19,7 @@ private:
 	float damping;
 
 	float timeStep;
+	set<int> collisionApplied;
 public:
 	Sphere(float x, float y, float z);
 	~Sphere(void);
@@ -23,6 +27,7 @@ public:
 	void clearForce();
 	void addGravityForce();
 	void addForce(Vec3 force);
+	void addForceFrom(Vec3 force, int i);
 
 	Vec3 getPosition();
 

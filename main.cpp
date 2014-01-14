@@ -557,54 +557,11 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 				Vec3 position = spheres[i].getPosition();
 				int x, y, z;
 				x = position.x / (2 * sphereSize);
-				y = position.x / (2 * sphereSize);
-				z = position.x / (2 * sphereSize);
+				y = position.y / (2 * sphereSize);
+				z = position.z / (2 * sphereSize);
 
 				int hashIndex = (x * p1 ^ y * p2 ^ z * p3) % hashTableSize;
 				hashTable[hashIndex].push_back(i);
-			}
-
-			for (unsigned int i = 0; i < spheres.size(); i++)
-			{
-				spheres[i].clearForce();
-				spheres[i].addGravityForce();
-			}
-			/*for (unsigned int i = 0; i < spheres.size(); i++)
-			{
-				for (unsigned int j = i + 1; j < spheres.size(); j++)
-				{
-					Vec3 pos1 = spheres[i].getPosition();
-					Vec3 pos2 = spheres[j].getPosition();
-					Vec3 dir = pos2 - pos1;
-					float d = sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
-					if (d < 2 * sphereSize)
-					{
-						Vec3 dir = pos2 - pos1;
-						dir.normalize();
-						spheres[i].addForce(-dir * (1.0f - d / (2 * sphereSize)) * lambda);
-						spheres[j].addForce(dir * (1.0f - d / (2 * sphereSize)) * lambda);
-					}
-				}
-			}*/
-			for (int hashIndex = 0; hashIndex < hashTableSize; hashIndex++)
-			{
-				for (unsigned int i = 0; i < hashTable[hashIndex].size(); i++)
-				{
-					for (unsigned int j = i + 1; j < hashTable[hashIndex].size(); j++)
-					{
-						Vec3 pos1 = spheres[i].getPosition();
-						Vec3 pos2 = spheres[j].getPosition();
-						Vec3 dir = pos2 - pos1;
-						float d = sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
-						if (d < 2 * sphereSize)
-						{
-							Vec3 dir = pos2 - pos1;
-							dir.normalize();
-							spheres[i].addForce(-dir * (1.0f - d / (2 * sphereSize)) * lambda);
-							spheres[j].addForce(dir * (1.0f - d / (2 * sphereSize)) * lambda);
-						}
-					}
-				}
 			}
 
 			for (unsigned int i = 0; i < spheres.size(); i++)
@@ -615,6 +572,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 				spheres[i].clearForce();
 				spheres[i].addGravityForce();
 			}
+			// naiver Ansatz
 			/*for (unsigned int i = 0; i < spheres.size(); i++)
 			{
 				for (unsigned int j = i + 1; j < spheres.size(); j++)
@@ -632,22 +590,51 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 					}
 				}
 			}*/
+			// mit Grid
 			for (int hashIndex = 0; hashIndex < hashTableSize; hashIndex++)
 			{
 				for (unsigned int i = 0; i < hashTable[hashIndex].size(); i++)
 				{
-					for (unsigned int j = i + 1; j < hashTable[hashIndex].size(); j++)
+					int index1 = hashTable[hashIndex][i];
+
+					Vec3 pos1 = spheres[index1].getPosition();
+
+					int surroundingCells[27];
+					int cIndex = 0;
+					for (int s = 0; s < 3; s++)
 					{
-						Vec3 pos1 = spheres[i].getPosition();
-						Vec3 pos2 = spheres[j].getPosition();
-						Vec3 dir = pos2 - pos1;
-						float d = sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
-						if (d < 2 * sphereSize)
+						for (int t = 0; t < 3; t++)
 						{
-							Vec3 dir = pos2 - pos1;
-							dir.normalize();
-							spheres[i].addForce(-dir * (1.0f - d / (2 * sphereSize)) * lambda);
-							spheres[j].addForce(dir * (1.0f - d / (2 * sphereSize)) * lambda);
+							for (int u = 0; u < 3; u++)
+							{
+								int x = (pos1.x + (s - 1) * 2 * sphereSize) / (2 * sphereSize);
+								int y = (pos1.y + (t - 1) * 2 * sphereSize) / (2 * sphereSize);
+								int z = (pos1.z + (u - 1) * 2 * sphereSize) / (2 * sphereSize);
+								surroundingCells[cIndex] = (x * p1 ^ y * p2 ^ z * p3) % hashTableSize;
+								cIndex++;
+							}
+						}
+					}
+
+					for (int j = 0; j < 27; j++)
+					{
+						for (unsigned int k = 0; k < hashTable[surroundingCells[j]].size(); k++)
+						{
+							int index2 = hashTable[surroundingCells[j]][k];
+
+							if (index1 != index2)
+							{
+								Vec3 pos2 = spheres[index2].getPosition();
+								Vec3 dir = pos2 - pos1;
+								float d = sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+								if (d < 2 * sphereSize)
+								{
+									Vec3 dir = pos2 - pos1;
+									dir.normalize();
+									spheres[index1].addForceFrom(-dir * (1.0f - d / (2 * sphereSize)) * lambda, index2);
+									spheres[index2].addForceFrom(dir * (1.0f - d / (2 * sphereSize)) * lambda, index1);
+								}
+							}
 						}
 					}
 				}
@@ -695,6 +682,8 @@ int main(int argc, char* argv[])
 {
 	Sphere s1(0, 0, 0);
 	Sphere s2(0.01f, 0.5f, 0);
+	/*s1.addGravityForce();
+	s2.addGravityForce();*/
 	spheres.push_back(s1);
 	spheres.push_back(s2);
 

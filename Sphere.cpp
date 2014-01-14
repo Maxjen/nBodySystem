@@ -18,6 +18,7 @@ Sphere::~Sphere(void)
 void Sphere::clearForce()
 {
 	forceAccumulator.zero();
+	collisionApplied.clear();
 }
 
 void Sphere::addGravityForce()
@@ -28,6 +29,15 @@ void Sphere::addGravityForce()
 void Sphere::addForce(Vec3 force)
 {
 	forceAccumulator += force;
+}
+
+void Sphere::addForceFrom(Vec3 force, int i)
+{
+	if (collisionApplied.find(i) == collisionApplied.end())
+	{
+		forceAccumulator += force;
+		collisionApplied.insert(i);
+	}
 }
 
 Vec3 Sphere::getPosition()
